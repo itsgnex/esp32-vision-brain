@@ -1,0 +1,313 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Live Video Reasoning</title>
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            background: #1a1a2e;
+            color: #eee;
+            min-height: 100vh;
+            display: flex;
+            flex-direction: column;
+        }
+        
+        .header {
+            background: #16213e;
+            padding: 15px 20px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            border-bottom: 1px solid #0f3460;
+        }
+        
+        .header h1 { font-size: 1.5rem; color: #e94560; }
+        
+        .controls { display: flex; gap: 15px; align-items: center; }
+        
+        .control-group { display: flex; align-items: center; gap: 8px; }
+        
+        .control-group label { font-size: 0.9rem; color: #aaa; }
+        
+        input[type="number"] {
+            background: #0f3460;
+            border: 1px solid #e94560;
+            color: #eee;
+            padding: 8px 12px;
+            border-radius: 5px;
+            width: 100px;
+            font-size: 0.9rem;
+        }
+        
+        button {
+            background: #e94560;
+            border: none;
+            color: white;
+            padding: 10px 20px;
+            border-radius: 5px;
+            cursor: pointer;
+            font-size: 0.9rem;
+            font-weight: 600;
+            transition: background 0.2s;
+        }
+        
+        button:hover { background: #ff6b6b; }
+        
+        button.stop { background: #4a4a4a; }
+        button.stop:hover { background: #6a6a6a; }
+        
+        button.clear { background: #4a4a4a; }
+        button.clear:hover { background: #6a6a6a; }
+        
+        .main-content {
+            flex: 1;
+            display: flex;
+            flex-direction: column;
+            padding: 20px;
+            gap: 20px;
+            max-width: 900px;
+            margin: 0 auto;
+            width: 100%;
+        }
+        
+        .video-container {
+            display: flex;
+            justify-content: center;
+            background: #000;
+            border-radius: 10px;
+            overflow: hidden;
+            border: 2px solid #0f3460;
+        }
+        
+        .video-container img {
+            width: 100%;
+            max-width: 640px;
+            height: auto;
+            display: block;
+        }
+        
+        .status-bar {
+            background: #16213e;
+            padding: 10px 20px;
+            border-radius: 5px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+        
+        .status { display: flex; align-items: center; gap: 8px; }
+        
+        .status-dot {
+            width: 10px;
+            height: 10px;
+            border-radius: 50%;
+            background: #4a4a4a;
+        }
+        
+        .status-dot.active {
+            background: #00ff00;
+            animation: pulse 1s infinite;
+        }
+        
+        @keyframes pulse {
+            0%, 100% { opacity: 1; }
+            50% { opacity: 0.5; }
+        }
+        
+        .context-log {
+            flex: 1;
+            background: #16213e;
+            border-radius: 10px;
+            padding: 15px;
+            overflow-y: auto;
+            max-height: 400px;
+            border: 1px solid #0f3460;
+        }
+        
+        .context-log h2 {
+            font-size: 1.1rem;
+            margin-bottom: 15px;
+            color: #e94560;
+        }
+        
+        .log-entry {
+            display: flex;
+            gap: 15px;
+            padding: 15px;
+            background: #0f3460;
+            border-radius: 8px;
+            margin-bottom: 10px;
+        }
+        
+        .log-entry img {
+            width: 160px;
+            height: 120px;
+            object-fit: cover;
+            border-radius: 5px;
+            flex-shrink: 0;
+        }
+        
+        .log-content { flex: 1; }
+        
+        .log-timestamp { font-size: 0.8rem; color: #888; margin-bottom: 5px; }
+        
+        .log-summary { font-size: 1rem; margin-bottom: 8px; line-height: 1.4; }
+        
+        .log-objects { font-size: 0.85rem; color: #aaa; }
+        
+        .log-objects span {
+            background: #1a1a2e;
+            padding: 3px 8px;
+            border-radius: 3px;
+            margin-right: 5px;
+        }
+        
+        .no-context {
+            text-align: center;
+            color: #666;
+            padding: 40px;
+        }
+    </style>
+</head>
+<body>
+    <div class="header">
+        <h1>Live Video Reasoning</h1>
+        <div class="controls">
+            <div class="control-group">
+                <label>Interval (ms):</label>
+                <input type="number" id="intervalInput" value="2000" min="500" max="30000" step="100">
+            </div>
+            <button id="startBtn">Start</button>
+            <button id="stopBtn" class="stop">Stop</button>
+            <button id="clearBtn" class="clear">Clear</button>
+        </div>
+    </div>
+    
+    <div class="main-content">
+        <div class="video-container">
+            <img id="videoFeed" src="/api/frame" alt="Live Video Feed">
+        </div>
+        
+        <div class="status-bar">
+            <div class="status">
+                <div class="status-dot" id="statusDot"></div>
+                <span id="statusText">Idle</span>
+            </div>
+            <div class="interval-display">
+                Interval: <span id="currentInterval">2000</span>ms
+            </div>
+        </div>
+        
+        <div class="context-log" id="contextLog">
+            <h2>Context Log</h2>
+            <div id="logEntries">
+                <div class="no-context">No observations yet. Press Start to begin.</div>
+            </div>
+        </div>
+    </div>
+    
+    <script>
+        let isRunning = false;
+        
+        const videoFeed = document.getElementById('videoFeed');
+        const statusDot = document.getElementById('statusDot');
+        const statusText = document.getElementById('statusText');
+        const intervalInput = document.getElementById('intervalInput');
+        const currentInterval = document.getElementById('currentInterval');
+        const startBtn = document.getElementById('startBtn');
+        const stopBtn = document.getElementById('stopBtn');
+        const clearBtn = document.getElementById('clearBtn');
+        const logEntries = document.getElementById('logEntries');
+        
+        async function updateStatus() {
+            try {
+                const response = await fetch('/api/context');
+                const data = await response.json();
+                
+                isRunning = data.is_running;
+                currentInterval.textContent = data.interval;
+                
+                if (isRunning) {
+                    statusDot.classList.add('active');
+                    statusText.textContent = 'Analyzing';
+                } else {
+                    statusDot.classList.remove('active');
+                    statusText.textContent = 'Idle';
+                }
+                
+                if (data.context && data.context.length > 0) {
+                    logEntries.innerHTML = '';
+                    const reversed = [...data.context].reverse();
+                    reversed.forEach(entry => {
+                        const div = document.createElement('div');
+                        div.className = 'log-entry';
+                        div.innerHTML = `
+                            <img src="data:image/jpeg;base64,${entry.image}" alt="Frame">
+                            <div class="log-content">
+                                <div class="log-timestamp">${entry.timestamp}</div>
+                                <div class="log-summary">${entry.summary}</div>
+                                <div class="log-objects">
+                                    ${entry.objects.map(o => `<span>${o}</span>`).join('')}
+                                </div>
+                            </div>
+                        `;
+                        logEntries.appendChild(div);
+                    });
+                } else if (!isRunning) {
+                    logEntries.innerHTML = '<div class="no-context">No observations yet. Press Start to begin.</div>';
+                }
+            } catch (e) {
+                console.error('Error:', e);
+            }
+        }
+        
+        startBtn.addEventListener('click', async () => {
+            const interval = parseInt(intervalInput.value);
+            await fetch('/api/context', {
+                method: 'POST',
+                headers: {'Content-Type': 'application/json'},
+                body: JSON.stringify({action: 'start', interval: interval})
+            });
+        });
+        
+        stopBtn.addEventListener('click', async () => {
+            await fetch('/api/context', {
+                method: 'POST',
+                headers: {'Content-Type': 'application/json'},
+                body: JSON.stringify({action: 'stop'})
+            });
+        });
+        
+        clearBtn.addEventListener('click', async () => {
+            await fetch('/api/context', {
+                method: 'POST',
+                headers: {'Content-Type': 'application/json'},
+                body: JSON.stringify({action: 'clear'})
+            });
+            updateStatus();
+        });
+        
+        intervalInput.addEventListener('change', () => {
+            const interval = parseInt(intervalInput.value);
+            if (interval >= 500 && interval <= 30000) {
+                fetch('/api/context', {
+                    method: 'POST',
+                    headers: {'Content-Type': 'application/json'},
+                    body: JSON.stringify({interval: interval})
+                });
+            }
+        });
+        
+        setInterval(() => {
+            videoFeed.src = '/api/frame?' + new Date().getTime();
+        }, 100);
+        
+        setInterval(updateStatus, 1000);
+        updateStatus();
+    </script>
+</body>
+</html>
