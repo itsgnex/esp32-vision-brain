@@ -35,7 +35,7 @@ except ImportError:
 WEBCAM_INDEX = 0  # 0 = default Mac webcam
 FRAME_SAMPLE_INTERVAL = 2  # seconds between frame captures
 OLLAMA_BASE_URL = "http://localhost:11434"
-VISION_MODEL = "llava:7b"  # or "llava:34b", "llava:mistral", etc.
+VISION_MODEL = "llava"  # or "llava:34b", "llava:mistral", etc.
 OUTPUT_FOLDER = Path(".")
 TERMINAL_LOG = True  # Print updates to terminal
 
